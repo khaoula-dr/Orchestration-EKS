@@ -1,5 +1,5 @@
 const express = require('express');
-const { pool } = require('./db');
+const { pool, connectWithRetry } = require('./db');
 const { getUser, getProduct, notifyUser } = require('./circuitBreaker');
 
 const app = express();
@@ -37,16 +37,20 @@ app.post('/orders', async (req, res) => {
   }
 
   try {
+    // Vérifie que l'utilisateur existe (passe par le circuit breaker : timeout 3s,
+    // et si user-service est en panne de façon répétée, échoue vite au lieu d'attendre)
     const user = await getUser(userId).catch(() => null);
     if (!user) {
       return res.status(400).json({ error: `User ${userId} not found or user-service unavailable` });
     }
 
+    // Vérifie que le produit existe (même protection)
     const product = await getProduct(productId).catch(() => null);
     if (!product) {
       return res.status(400).json({ error: `Product ${productId} not found or product-service unavailable` });
     }
 
+    // Insère la commande
     const { rows } = await pool.query(
       `INSERT INTO orders (user_id, product_id, quantity, status)
        VALUES ($1, $2, $3, 'confirmed') RETURNING *`,
@@ -54,6 +58,8 @@ app.post('/orders', async (req, res) => {
     );
     const order = rows[0];
 
+    // Notifie l'utilisateur (best-effort : le circuit breaker a déjà un fallback silencieux,
+    // donc pas besoin d'un try/catch supplémentaire ici)
     await notifyUser({
       userId,
       message: `Votre commande #${order.id} pour "${product.name}" a été confirmée.`,
@@ -67,4 +73,8 @@ app.post('/orders', async (req, res) => {
   }
 });
 
-module.exports = app;
+const PORT = 3000;
+
+connectWithRetry().then(() => {
+  app.listen(PORT, () => console.log(`[order-service] listening on port ${PORT}`));
+});

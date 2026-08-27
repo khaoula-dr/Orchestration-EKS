@@ -1,5 +1,5 @@
 const express = require('express');
-const { pool } = require('./db');
+const { pool, connectWithRetry } = require('./db');
 
 const app = express();
 app.use(express.json());
@@ -42,4 +42,8 @@ app.post('/users', async (req, res) => {
   }
 });
 
-module.exports = app;
+const PORT = 3000;
+
+connectWithRetry().then(() => {
+  app.listen(PORT, () => console.log(`[user-service] listening on port ${PORT}`));
+});

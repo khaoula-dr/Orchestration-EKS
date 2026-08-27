@@ -1,4 +1,4 @@
-# Active le support des NetworkPolicy sur le plugin réseau du cluster (RBN-26).
+# Active le support des NetworkPolicy sur le plugin réseau du cluster .
 # Sans ça, les objets NetworkPolicy créés plus bas dans Helm sont ignorés.
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name  = module.eks.cluster_name

@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const app = express();
 app.use(express.json());
 
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://mongo-db:27017/products';
+
 const productSchema = new mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
@@ -48,4 +50,27 @@ app.post('/products', async (req, res) => {
   }
 });
 
-module.exports = { app, Product };
+async function seedIfEmpty() {
+  const count = await Product.countDocuments();
+  if (count === 0) {
+    await Product.insertMany([
+      { name: 'T-shirt', price: 19.99, stock: 100 },
+      { name: 'Casquette', price: 14.5, stock: 50 },
+    ]);
+    console.log('[product-service] Seed data inserted');
+  }
+}
+
+const PORT = 3000;
+
+mongoose
+  .connect(MONGO_URI)
+  .then(async () => {
+    console.log('[product-service] Connected to MongoDB');
+    await seedIfEmpty();
+    app.listen(PORT, () => console.log(`[product-service] listening on port ${PORT}`));
+  })
+  .catch((err) => {
+    console.error('[product-service] MongoDB connection error:', err.message);
+    process.exit(1);
+  });

@@ -61,25 +61,3 @@ docker compose down -v
 docker compose logs <nom-du-service>
 docker compose ps
 ```
-
-## Images Docker multi-stage (RBN-16 / RBN-18)
-
-Chaque service Node.js utilise un Dockerfile en 2 stages :
-1. `deps` : installe uniquement les dépendances de production (`npm ci --omit=dev`)
-2. `runtime` : image finale, exécutée par un utilisateur **non-root** (`appuser`), avec `HEALTHCHECK` intégré
-
-Ça réduit la taille des images et limite la surface d'attaque (pas d'outils de build dans l'image finale, pas de root).
-
-## Publier les images sur Amazon ECR (RBN-17)
-
-```bash
-export AWS_REGION=eu-west-3   # adapter à ta région
-./scripts/push-to-ecr.sh latest
-```
-
-Le script :
-- crée automatiquement un repo ECR par service (`ecommerce/frontend`, `ecommerce/api-gateway`, etc.) avec scan de vulnérabilités activé au push
-- build et push chaque image
-- affiche à la fin les URIs complètes à réutiliser dans les `values.yaml` des charts Helm (Sprint 3)
-
-Prérequis : AWS CLI configuré (`aws configure`) avec des droits IAM pour créer des repos ECR et y pousser des images.

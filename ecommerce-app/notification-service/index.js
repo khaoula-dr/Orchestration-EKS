@@ -28,4 +28,5 @@ app.post('/notifications', (req, res) => {
   res.status(201).json(notification);
 });
 
-module.exports = app;
+const PORT = 3000;
+app.listen(PORT, () => console.log(`[notification-service] listening on port ${PORT}`));

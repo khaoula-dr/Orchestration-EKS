@@ -1,6 +1,6 @@
 // tracing.js
 // Auto-instrumentation OpenTelemetry : patch automatiquement express, axios,
-// pg et mongoose au chargement, sans toucher au code métier de app.js/server.js.
+// pg et mongoose au chargement, sans toucher au code métier de index.js.
 // Le nom du service et l'endpoint Jaeger viennent des variables d'environnement
 // OTEL_SERVICE_NAME / OTEL_EXPORTER_OTLP_ENDPOINT (injectées par Helm).
 
