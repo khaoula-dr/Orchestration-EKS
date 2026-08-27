@@ -1,0 +1,30 @@
+name: frontend
+
+image:
+  repository: ""
+  tag: latest
+
+replicaCount: 2
+port: 80
+
+service:
+  type: ClusterIP # exposé au monde via l'Ingress, pas directement
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 150m
+    memory: 128Mi
+
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443" # force HTTP -> HTTPS (RBN-24)
+    alb.ingress.kubernetes.io/certificate-arn: "" # rempli via values-secrets.yaml
+  host: ""

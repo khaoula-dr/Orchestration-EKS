@@ -1,0 +1,36 @@
+name: notification-service
+
+image:
+  repository: ""
+  tag: latest
+
+replicaCount: 2
+port: 3000
+
+service:
+  type: ClusterIP
+
+probes:
+  path: /health
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 150m
+    memory: 128Mi
+
+hpa:
+  enabled: false # stateless et léger, pas critique de le scaler automatiquement pour la démo
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+configData:
+  OTEL_SERVICE_NAME: notification-service
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger-collector.observability.svc.cluster.local:4318
+
+secret:
+  enabled: false
+  data: {}

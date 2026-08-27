@@ -1,0 +1,28 @@
+# Surcharges pour l'environnement DEV : peu de ressources, 1 seul replica partout,
+# pas d'autoscaling (pas nécessaire pour tester en dev)
+
+frontend:
+  replicaCount: 1
+
+api-gateway:
+  replicaCount: 1
+  hpa:
+    enabled: false
+
+user-service:
+  replicaCount: 1
+  hpa:
+    enabled: false
+
+product-service:
+  replicaCount: 1
+  hpa:
+    enabled: false
+
+order-service:
+  replicaCount: 1
+  hpa:
+    enabled: false
+
+notification-service:
+  replicaCount: 1

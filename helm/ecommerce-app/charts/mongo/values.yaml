@@ -1,0 +1,19 @@
+image:
+  repository: mongo
+  tag: "7"
+
+replicaCount: 1
+
+port: 27017
+
+storage:
+  size: 2Gi
+  storageClassName: gp2
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi

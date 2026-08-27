@@ -1,0 +1,40 @@
+name: user-service
+
+image:
+  repository: "" # rempli via --set global.ecrRegistry ou surchargé en ligne de commande
+  tag: latest
+
+replicaCount: 2
+port: 3000
+
+service:
+  type: ClusterIP
+
+probes:
+  path: /health
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+configData:
+  DB_HOST: postgres-db
+  DB_NAME: usersdb
+  OTEL_SERVICE_NAME: user-service
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger-collector.observability.svc.cluster.local:4318
+
+secret:
+  enabled: true
+  data:
+    DB_USER: postgres
+    DB_PASSWORD: postgres

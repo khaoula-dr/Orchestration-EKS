@@ -1,0 +1,17 @@
+# --- Terraform ---
+terraform.tfvars
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+
+# --- Helm ---
+values-secrets.yaml
+
+# --- Node.js (ecommerce-app) ---
+node_modules/
+
+# --- Divers ---
+.DS_Store
+#--- observability ---
+value.yaml

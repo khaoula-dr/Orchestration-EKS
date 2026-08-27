@@ -1,0 +1,5 @@
+apiVersion: v2
+name: api-gateway
+description: Microservice api-gateway de l'application e-commerce
+version: 0.1.0
+appVersion: "1.0.0"

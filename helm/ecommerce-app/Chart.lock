@@ -1,0 +1,27 @@
+dependencies:
+- name: postgres
+  repository: file://charts/postgres
+  version: 0.1.0
+- name: mongo
+  repository: file://charts/mongo
+  version: 0.1.0
+- name: frontend
+  repository: file://charts/frontend
+  version: 0.1.0
+- name: api-gateway
+  repository: file://charts/api-gateway
+  version: 0.1.0
+- name: user-service
+  repository: file://charts/user-service
+  version: 0.1.0
+- name: product-service
+  repository: file://charts/product-service
+  version: 0.1.0
+- name: order-service
+  repository: file://charts/order-service
+  version: 0.1.0
+- name: notification-service
+  repository: file://charts/notification-service
+  version: 0.1.0
+digest: sha256:2d83a055b76f07062e70030e68da2e8bc33b0e2c1a0b618a51fbc609bc5af330
+generated: "2026-08-12T22:23:04.429964525+02:00"

@@ -1,0 +1,32 @@
+# À appliquer une fois ArgoCD installé (voir NEXT_STEPS_pipeline.md)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ecommerce-app
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: "<URL_DE_TON_REPO_GIT>"   # ex: https://github.com/khaoula-dr/Orchestration-EKS.git
+    targetRevision: main
+    path: helm/ecommerce-app
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-dev.yaml
+        # values-secrets.yaml n'est PAS ici : ArgoCD ne doit pas lire un fichier
+        # non commité. Les secrets doivent être gérés via un Secret Kubernetes
+        # séparé (créé manuellement ou via un outil comme External Secrets),
+        # pas injectés par ArgoCD depuis Git.
+
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: demo-app
+
+  syncPolicy:
+    automated:
+      prune: true       # supprime les ressources retirées du chart
+      selfHeal: true     # corrige automatiquement toute dérive manuelle (kubectl edit direct)
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,50 @@
+# Grafana
+grafana:
+  enabled: true
+  adminPassword: "changeme-en-prod"   # à passer en --set au lieu de le committer, comme tes secrets DB
+  service:
+    type: ClusterIP
+  persistence:
+    enabled: true
+    storageClassName: ebs-sc          # ou gp2 selon ce que kubectl get storageclass confirme
+    size: 5Gi
+
+# Prometheus
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: ebs-sc
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+    # Autorise Prometheus à scraper les pods sur TOUS les namespaces,
+    # pas seulement le sien -- important vu que ton app est dans "demo-app"
+    podMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+
+# Alertmanager 
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: "default"
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - receiver: "default"
+          matchers:
+            - alertname =~ "InfoInhibitor|Watchdog"
+    receivers:
+      - name: "default"
+        slack_configs:
+          - api_url: "{{ .Values.slackWebhook }}"
+            channel: "#alertes-ecommerce-eks"
+            send_resolved: true
+            title: "{{ .GroupLabels.alertname }}"
+            text: "{{ range .Alerts }}{{ .Annotations.description }}\n{{ end }}"

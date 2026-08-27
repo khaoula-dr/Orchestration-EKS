@@ -1,0 +1,10 @@
+# Politique "default deny" : par défaut, aucun pod du namespace ne peut
+# recevoir de trafic sauf autorisation explicite via une autre NetworkPolicy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress

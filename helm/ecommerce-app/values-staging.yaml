@@ -1,0 +1,29 @@
+# Surcharges pour STAGING : 2 replicas, autoscaling activé mais avec un plafond bas
+
+api-gateway:
+  replicaCount: 2
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 3
+
+user-service:
+  replicaCount: 2
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 3
+
+product-service:
+  replicaCount: 2
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 3
+
+order-service:
+  replicaCount: 2
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 3

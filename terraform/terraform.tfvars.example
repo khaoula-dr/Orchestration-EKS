@@ -1,0 +1,10 @@
+# Copie ce fichier en "terraform.tfvars" et remplis tes propres valeurs
+# terraform.tfvars ne doit JAMAIS être commité s'il contient des infos sensibles
+# (ici il n'y a rien de secret, mais c'est une bonne habitude à prendre)
+
+aws_region   = "eu-west-3"
+project_name = "orchestration-eks"
+cluster_name = "ecommerce-eks"
+
+github_org  = "khaoula-dr"
+github_repo = "Orchestration-EKS"

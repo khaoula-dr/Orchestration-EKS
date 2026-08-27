@@ -1,0 +1,5 @@
+apiVersion: v2
+name: notification-service
+description: Microservice notification-service de l'application e-commerce
+version: 0.1.0
+appVersion: "1.0.0"

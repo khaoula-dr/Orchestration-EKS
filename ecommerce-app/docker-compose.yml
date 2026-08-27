@@ -1,0 +1,127 @@
+version: "3.9"
+
+networks:
+  ecommerce-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  mongo-data:
+
+services:
+
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_MULTIPLE_DATABASES: usersdb,ordersdb
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts/postgres-init-multi-db.sh:/docker-entrypoint-initdb.d/postgres-init-multi-db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks:
+      - ecommerce-net
+
+  mongo-db:
+    image: mongo:7
+    container_name: mongo-db
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - ecommerce-net
+
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    environment:
+      DB_HOST: postgres-db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: usersdb
+    volumes:
+      - ./user-service:/app
+      - /app/node_modules
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    networks:
+      - ecommerce-net
+
+  product-service:
+    build: ./product-service
+    container_name: product-service
+    environment:
+      MONGO_URI: mongodb://mongo-db:27017/products
+    volumes:
+      - ./product-service:/app
+      - /app/node_modules
+    depends_on:
+      - mongo-db
+    networks:
+      - ecommerce-net
+
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    environment:
+      DB_HOST: postgres-db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: ordersdb
+      USER_SERVICE_URL: http://user-service:3000
+      PRODUCT_SERVICE_URL: http://product-service:3000
+      NOTIFICATION_SERVICE_URL: http://notification-service:3000
+    volumes:
+      - ./order-service:/app
+      - /app/node_modules
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+      product-service:
+        condition: service_started
+    networks:
+      - ecommerce-net
+
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    volumes:
+      - ./notification-service:/app
+      - /app/node_modules
+    networks:
+      - ecommerce-net
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    environment:
+      USER_SERVICE_URL: http://user-service:3000
+      PRODUCT_SERVICE_URL: http://product-service:3000
+      ORDER_SERVICE_URL: http://order-service:3000
+    volumes:
+      - ./api-gateway:/app
+      - /app/node_modules
+    depends_on:
+      - user-service
+      - product-service
+      - order-service
+    networks:
+      - ecommerce-net
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - ecommerce-net

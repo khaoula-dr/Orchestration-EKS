@@ -1,0 +1,20 @@
+# Sans cette règle, le "default deny" ci-dessus casserait aussi la résolution
+# DNS (CoreDNS) pour tous les pods, puisque default-deny ne bloque QUE
+# l'ingress — mais on ajoute quand même cette règle egress explicite par
+# clarté et bonne pratique.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

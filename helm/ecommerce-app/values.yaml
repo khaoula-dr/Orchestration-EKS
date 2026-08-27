@@ -1,0 +1,12 @@
+# Valeurs globales / partagées entre tous les sous-charts.
+# Chaque bloc ci-dessous correspond au nom d'un sous-chart et surcharge SON values.yaml.
+#
+# Les URLs des images ECR (qui contiennent ton ID de compte AWS) NE SONT PAS ici,
+# volontairement, pour ne pas les publier sur GitHub. Elles sont dans "values-secrets.yaml",
+# un fichier local que tu crées toi-même à partir de "values-secrets.yaml.example"
+# et qui est exclu du repo via .gitignore.
+
+# postgres et mongo utilisent directement les images officielles Docker Hub,
+# pas besoin de passer par ECR pour celles-ci — rien à surcharger ici.
+postgres: {}
+mongo: {}

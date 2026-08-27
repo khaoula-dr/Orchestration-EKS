@@ -1,0 +1,55 @@
+# Surcharges pour PROD : plus de replicas de base, plus de ressources,
+# plafond d'autoscaling plus élevé
+
+frontend:
+  replicaCount: 3
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+api-gateway:
+  replicaCount: 3
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 8
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+user-service:
+  replicaCount: 3
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 8
+
+product-service:
+  replicaCount: 3
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 8
+
+order-service:
+  replicaCount: 3
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+
+postgres:
+  storage:
+    size: 10Gi
+
+mongo:
+  storage:
+    size: 10Gi

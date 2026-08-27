@@ -1,0 +1,24 @@
+image:
+  repository: postgres
+  tag: "16-alpine"
+
+replicaCount: 1
+
+port: 5432
+
+storage:
+  size: 2Gi
+  storageClassName: gp2 # StorageClass EBS créée en Sprint 2
+
+auth:
+  username: postgres
+  password: postgres # à surcharger via --set ou un Secret externe en prod, jamais laisser en clair en vrai prod
+  multipleDatabases: "usersdb,ordersdb"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi

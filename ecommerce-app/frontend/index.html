@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>E-commerce Demo</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #222; }
+  h1 { font-size: 1.6rem; }
+  section { margin-bottom: 32px; }
+  h2 { font-size: 1.1rem; border-bottom: 1px solid #ddd; padding-bottom: 6px; }
+  ul { list-style: none; padding: 0; }
+  li { padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+  button { padding: 8px 14px; cursor: pointer; }
+  form { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  input { padding: 6px; }
+  .status { font-size: 0.85rem; color: #888; }
+</style>
+</head>
+<body>
+  <h1>🛒 E-commerce Demo (microservices)</h1>
+
+  <section>
+    <h2>Utilisateurs</h2>
+    <ul id="users-list"></ul>
+  </section>
+
+  <section>
+    <h2>Produits</h2>
+    <ul id="products-list"></ul>
+  </section>
+
+  <section>
+    <h2>Passer une commande</h2>
+    <form id="order-form">
+      <input id="order-userId" type="number" placeholder="ID utilisateur" required />
+      <input id="order-productId" type="text" placeholder="ID produit" required />
+      <input id="order-quantity" type="number" placeholder="Quantité" value="1" min="1" />
+      <button type="submit">Commander</button>
+    </form>
+    <p id="order-result" class="status"></p>
+  </section>
+
+  <section>
+    <h2>Commandes</h2>
+    <ul id="orders-list"></ul>
+  </section>
+
+<script>
+const api = (path) => fetch('/api' + path).then(r => r.json());
+
+async function loadUsers() {
+  const users = await api('/users').catch(() => []);
+  document.getElementById('users-list').innerHTML =
+    users.map(u => `<li>#${u.id} — ${u.name} (${u.email})</li>`).join('') || '<li>Aucun utilisateur</li>';
+}
+
+async function loadProducts() {
+  const products = await api('/products').catch(() => []);
+  document.getElementById('products-list').innerHTML =
+    products.map(p => `<li>#${p._id} — ${p.name} — ${p.price}€ (stock: ${p.stock})</li>`).join('') || '<li>Aucun produit</li>';
+}
+
+async function loadOrders() {
+  const orders = await api('/orders').catch(() => []);
+  document.getElementById('orders-list').innerHTML =
+    orders.map(o => `<li>#${o.id} — user ${o.user_id} — produit ${o.product_id} x${o.quantity} — ${o.status}</li>`).join('') || '<li>Aucune commande</li>';
+}
+
+document.getElementById('order-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const userId = document.getElementById('order-userId').value;
+  const productId = document.getElementById('order-productId').value;
+  const quantity = document.getElementById('order-quantity').value;
+  const resultEl = document.getElementById('order-result');
+  resultEl.textContent = 'Envoi en cours...';
+  try {
+    const resp = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: Number(userId), productId, quantity: Number(quantity) })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Erreur');
+    resultEl.textContent = `Commande #${data.id} créée !`;
+    loadOrders();
+  } catch (err) {
+    resultEl.textContent = 'Erreur: ' + err.message;
+  }
+});
+
+loadUsers();
+loadProducts();
+loadOrders();
+</script>
+</body>
+</html>

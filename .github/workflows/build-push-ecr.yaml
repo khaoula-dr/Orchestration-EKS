@@ -1,0 +1,106 @@
+name: Build, Test, Scan & Push images vers ECR
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ecommerce-app/**"
+  pull_request:
+    paths:
+      - "ecommerce-app/**"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: eu-west-3
+  AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - api-gateway
+          - user-service
+          - product-service
+          - order-service
+          - notification-service
+          # "frontend" volontairement exclu : Nginx statique, pas de tests JS
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ecommerce-app/${{ matrix.service }}/package-lock.json
+
+      - name: Installer les dépendances
+        working-directory: ecommerce-app/${{ matrix.service }}
+        run: npm ci
+
+      - name: Lancer les tests unitaires
+        working-directory: ecommerce-app/${{ matrix.service }}
+        run: npm test
+
+  build-and-push:
+    needs: test # le build ne se lance que si TOUS les tests (matrice) passent
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - frontend
+          - api-gateway
+          - user-service
+          - product-service
+          - order-service
+          - notification-service
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Build de l'image ${{ matrix.service }} (locale, pas encore pushée)
+        run: |
+          docker build -t local/${{ matrix.service }}:scan \
+                        ./ecommerce-app/${{ matrix.service }}
+
+      # Scan de vulnérabilités AVANT le push : si une faille CRITICAL/HIGH est
+      # trouvée, le job échoue et l'image n'atteint jamais ECR.
+      - name: Scan de vulnérabilités (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: local/${{ matrix.service }}:scan
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Authentification AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login sur Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ⚠️ Le nom du repo DOIT correspondre à "orchestration-eks/<service>"
+      # (project_name Terraform actuel), pas "ecommerce/<service>".
+      - name: Retag et push de l'image ${{ matrix.service }}
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker tag local/${{ matrix.service }}:scan $ECR_REGISTRY/orchestration-eks/${{ matrix.service }}:$IMAGE_TAG
+          docker tag local/${{ matrix.service }}:scan $ECR_REGISTRY/orchestration-eks/${{ matrix.service }}:latest
+          docker push $ECR_REGISTRY/orchestration-eks/${{ matrix.service }}:$IMAGE_TAG
+          docker push $ECR_REGISTRY/orchestration-eks/${{ matrix.service }}:latest

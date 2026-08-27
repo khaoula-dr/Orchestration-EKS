@@ -1,0 +1,19 @@
+serviceAccount:
+  create: true
+  name: aws-for-fluent-bit
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::136609826386:role/orchestration-eks-fluent-bit-role"   # terraform output fluent_bit_role_arn
+
+cloudWatch:
+  enabled: true
+  region: eu-west-3
+  logGroupName: "/eks/ecommerce-eks/fluent-bit"
+  logRetentionDays: 7
+  logStreamPrefix: "pod-"
+
+firehose:
+  enabled: false
+kinesis:
+  enabled: false
+elasticsearch:
+  enabled: false

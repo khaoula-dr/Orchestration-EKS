@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.name }}
+  labels:
+    app: {{ .Values.name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}
+    spec:
+      containers:
+        - name: {{ .Values.name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: {{ .Values.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.name }}-config
+            {{- if .Values.secret.enabled }}
+            - secretRef:
+                name: {{ .Values.name }}-secret
+            {{- end }}
+          # Startup probe : laisse le temps au conteneur de démarrer avant
+          # que liveness/readiness ne commencent à le juger (RBN-22)
+          startupProbe:
+            httpGet:
+              path: {{ .Values.probes.path }}
+              port: {{ .Values.port }}
+            failureThreshold: 10
+            periodSeconds: 3
+          # Liveness : si ça échoue plusieurs fois, Kubernetes redémarre le pod
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.path }}
+              port: {{ .Values.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            failureThreshold: 3
+          # Readiness : si ça échoue, le pod est juste retiré du Service (pas de trafic),
+          # sans être redémarré
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.path }}
+              port: {{ .Values.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

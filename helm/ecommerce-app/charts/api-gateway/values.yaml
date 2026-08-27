@@ -1,0 +1,39 @@
+name: api-gateway
+
+image:
+  repository: ""
+  tag: latest
+
+replicaCount: 2
+port: 3000
+
+service:
+  type: ClusterIP
+
+probes:
+  path: /health
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+configData:
+  USER_SERVICE_URL: http://user-service:3000
+  PRODUCT_SERVICE_URL: http://product-service:3000
+  ORDER_SERVICE_URL: http://order-service:3000
+  OTEL_SERVICE_NAME: api-gateway
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger-collector.observability.svc.cluster.local:4318
+
+secret:
+  enabled: false
+  data: {}
