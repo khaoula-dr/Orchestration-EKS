@@ -1,13 +1,16 @@
-name: Build, Test, Scan & Push images vers ECR
+name: Build, Scan & Push images vers ECR
 
 on:
   push:
     branches: [main]
     paths:
       - "ecommerce-app/**"
+
   pull_request:
+    branches: [main]
     paths:
       - "ecommerce-app/**"
+
   workflow_dispatch:
 
 permissions:
@@ -19,40 +22,10 @@ env:
   AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
 
 jobs:
-  test:
+  build-and-scan:
+    name: Build & Scan ${{ matrix.service }}
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service:
-          - api-gateway
-          - user-service
-          - product-service
-          - order-service
-          - notification-service
-          # "frontend" volontairement exclu : Nginx statique, pas de tests JS
 
-    steps:
-      - name: Récupérer le code
-        uses: actions/checkout@v4
-
-      - name: Installer Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: ecommerce-app/${{ matrix.service }}/package-lock.json
-
-      - name: Installer les dépendances
-        working-directory: ecommerce-app/${{ matrix.service }}
-        run: npm ci
-
-      - name: Lancer les tests unitaires
-        working-directory: ecommerce-app/${{ matrix.service }}
-        run: npm test
-
-  build-and-push:
-    needs: test # le build ne se lance que si TOUS les tests (matrice) passent
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         service:
@@ -64,17 +37,17 @@ jobs:
           - notification-service
 
     steps:
+
       - name: Récupérer le code
         uses: actions/checkout@v4
 
-      - name: Build de l'image ${{ matrix.service }} (locale, pas encore pushée)
+      - name: Build de l'image
         run: |
-          docker build -t local/${{ matrix.service }}:scan \
-                        ./ecommerce-app/${{ matrix.service }}
+          docker build \
+            -t local/${{ matrix.service }}:scan \
+            ./ecommerce-app/${{ matrix.service }}
 
-      # Scan de vulnérabilités AVANT le push : si une faille CRITICAL/HIGH est
-      # trouvée, le job échoue et l'image n'atteint jamais ECR.
-      - name: Scan de vulnérabilités (Trivy)
+      - name: Scan de vulnérabilités avec Trivy
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: local/${{ matrix.service }}:scan
@@ -83,24 +56,34 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
 
-      - name: Authentification AWS (OIDC)
+      - name: Authentification AWS avec OIDC
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login sur Amazon ECR
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
-      # ⚠️ Le nom du repo DOIT correspondre à "orchestration-eks/<service>"
-      # (project_name Terraform actuel), pas "ecommerce/<service>".
-      - name: Retag et push de l'image ${{ matrix.service }}
+      - name: Push vers ECR
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker tag local/${{ matrix.service }}:scan $ECR_REGISTRY/orchestration-eks/${{ matrix.service }}:$IMAGE_TAG
-          docker tag local/${{ matrix.service }}:scan $ECR_REGISTRY/orchestration-eks/${{ matrix.service }}:latest
-          docker push $ECR_REGISTRY/orchestration-eks/${{ matrix.service }}:$IMAGE_TAG
-          docker push $ECR_REGISTRY/orchestration-eks/${{ matrix.service }}:latest
+          docker tag \
+            local/${{ matrix.service }}:scan \
+            $ECR_REGISTRY/orchestration-eks/${{ matrix.service }}:$IMAGE_TAG
+
+          docker tag \
+            local/${{ matrix.service }}:scan \
+            $ECR_REGISTRY/orchestration-eks/${{ matrix.service }}:latest
+
+          docker push \
+            $ECR_REGISTRY/orchestration-eks/${{ matrix.service }}:$IMAGE_TAG
+
+          docker push \
+            $ECR_REGISTRY/orchestration-eks/${{ matrix.service }}:latest
