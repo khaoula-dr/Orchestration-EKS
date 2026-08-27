@@ -2,33 +2,24 @@ name: Build, Scan & Push images vers ECR
 
 on:
   push:
-    branches: [main]
-    paths:
-      - "ecommerce-app/**"
+    branches:
+      - main
 
   pull_request:
-    paths:
-      - "ecommerce-app/**"
 
   workflow_dispatch:
 
-# Permissions nécessaires pour l'authentification AWS OIDC
 permissions:
   id-token: write
   contents: read
 
 env:
   AWS_REGION: eu-west-3
-
-  # ARN du rôle AWS créé par Terraform
   AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
-
-  # Préfixe des repositories ECR
   ECR_REPO_PREFIX: orchestration-eks
 
 jobs:
   build-scan-and-push:
-
     runs-on: ubuntu-latest
 
     strategy:
@@ -43,27 +34,19 @@ jobs:
 
     steps:
 
-      # =========================================
       # 1. Récupération du code
-      # =========================================
       - name: Récupérer le code
         uses: actions/checkout@v4
 
-
-      # ==========================================
-      # 2. Build Docker
-      # ==========================================
+      # 2. Construction de l'image Docker
       - name: Build de l'image ${{ matrix.service }}
         run: |
           docker build \
             -t local/${{ matrix.service }}:scan \
             ./ecommerce-app/${{ matrix.service }}
 
-
-      # ==========================================
-      # 3. Scan de vulnérabilités avec Trivy
-      # ==========================================
-      - name: Scan de vulnérabilités (Trivy)
+      # 3. Scan de vulnérabilités
+      - name: Scan de vulnérabilités avec Trivy
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: local/${{ matrix.service }}:scan
@@ -72,12 +55,7 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
 
-
-      # ==========================================
       # 4. Authentification AWS avec OIDC
-      # ==========================================
-      # Sur une Pull Request, on fait uniquement
-      # build + scan. Aucun accès AWS n'est nécessaire.
       - name: Authentification AWS (OIDC)
         if: github.event_name != 'pull_request'
         uses: aws-actions/configure-aws-credentials@v4
@@ -85,25 +63,18 @@ jobs:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-
-      # ==========================================
-      # 5. Login Amazon ECR
-      # ==========================================
+      # 5. Connexion à ECR
       - name: Login sur Amazon ECR
         if: github.event_name != 'pull_request'
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
-
-      # ==========================================
-      # 6. Tag + Push vers ECR
-      # ==========================================
-      - name: Retag et push de l'image ${{ matrix.service }}
+      # 6. Tag et Push vers ECR
+      - name: Push de l'image vers ECR
         if: github.event_name != 'pull_request'
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
-
         run: |
           docker tag \
             local/${{ matrix.service }}:scan \
