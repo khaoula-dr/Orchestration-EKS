@@ -1,27 +1,32 @@
 name: Build, Scan & Push images vers ECR
 
+# Se déclenche à chaque push sur main qui touche l'app, sur chaque Pull Request,
+# ou manuellement depuis l'onglet Actions.
 on:
   push:
-    branches:
-      - main
-
+    branches: [main]
+    paths:
+      - "ecommerce-app/**"
   pull_request:
-
+    paths:
+      - "ecommerce-app/**"
   workflow_dispatch:
 
+# Permissions nécessaires pour OIDC (obtenir un token temporaire depuis GitHub, sans clé AWS stockée)
 permissions:
   id-token: write
   contents: read
 
 env:
   AWS_REGION: eu-west-3
+  # ARN du rôle créé par le module Terraform "github-oidc" (output "github_actions_role_arn")
   AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+  # Préfixe réel des repos ECR (= project_name Terraform)
   ECR_REPO_PREFIX: orchestration-eks
 
 jobs:
   build-scan-and-push:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         service:
@@ -33,59 +38,47 @@ jobs:
           - notification-service
 
     steps:
-
-      # 1. Récupération du code
       - name: Récupérer le code
         uses: actions/checkout@v4
 
-      # 2. Construction de l'image Docker
-      - name: Build de l'image ${{ matrix.service }}
+      - name: Build de l'image ${{ matrix.service }} (locale, pas encore pushée)
         run: |
-          docker build \
-            -t local/${{ matrix.service }}:scan \
-            ./ecommerce-app/${{ matrix.service }}
+          docker build -t local/${{ matrix.service }}:scan \
+                        ./ecommerce-app/${{ matrix.service }}
 
-      # 3. Scan de vulnérabilités
-      - name: Scan de vulnérabilités avec Trivy
+      # Scan de vulnérabilités AVANT le push -- si une faille CRITICAL/HIGH est trouvée,
+      # le job échoue et l'image n'atteint jamais ECR.
+      - name: Scan de vulnérabilités (Trivy)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: local/${{ matrix.service }}:scan
           format: table
           severity: CRITICAL,HIGH
-          exit-code: "1"
-          ignore-unfixed: true
+          exit-code: "1"          # fait échouer le job si CRITICAL/HIGH trouvé
+          ignore-unfixed: true    # ignore les failles sans correctif dispo
 
-      # 4. Authentification AWS avec OIDC
+      # Authentification AWS SANS clé stockée : GitHub fournit un token OIDC,
+      # AWS le vérifie et donne un accès temporaire limité au rôle défini en Terraform.
+      # Placée après le scan : inutile d'ouvrir une session AWS si l'image est déjà rejetée.
       - name: Authentification AWS (OIDC)
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request'   # pas de push depuis une PR externe, juste build+scan
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 5. Connexion à ECR
       - name: Login sur Amazon ECR
         if: github.event_name != 'pull_request'
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 6. Tag et Push vers ECR
-      - name: Push de l'image vers ECR
+      - name: Retag et push de l'image ${{ matrix.service }}
         if: github.event_name != 'pull_request'
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker tag \
-            local/${{ matrix.service }}:scan \
-            $ECR_REGISTRY/$ECR_REPO_PREFIX/${{ matrix.service }}:$IMAGE_TAG
-
-          docker tag \
-            local/${{ matrix.service }}:scan \
-            $ECR_REGISTRY/$ECR_REPO_PREFIX/${{ matrix.service }}:latest
-
-          docker push \
-            $ECR_REGISTRY/$ECR_REPO_PREFIX/${{ matrix.service }}:$IMAGE_TAG
-
-          docker push \
-            $ECR_REGISTRY/$ECR_REPO_PREFIX/${{ matrix.service }}:latest
+          docker tag local/${{ matrix.service }}:scan $ECR_REGISTRY/$ECR_REPO_PREFIX/${{ matrix.service }}:$IMAGE_TAG
+          docker tag local/${{ matrix.service }}:scan $ECR_REGISTRY/$ECR_REPO_PREFIX/${{ matrix.service }}:latest
+          docker push $ECR_REGISTRY/$ECR_REPO_PREFIX/${{ matrix.service }}:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPO_PREFIX/${{ matrix.service }}:latest
