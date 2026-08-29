@@ -47,3 +47,4 @@ const PORT = 3000;
 connectWithRetry().then(() => {
   app.listen(PORT, () => console.log(`[user-service] listening on port ${PORT}`));
 });
+
